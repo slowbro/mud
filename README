@@ -1,0 +1,9 @@
+this is a work in progress and will probably never go anywhere.
+
+small bash-based MUD. to "install":
+
+1)useradd -m -s/bin/mud muduser
+2) mv mud /bin/mud && chmod +x /bin/mud
+3) mkdir /home/muduser/players /home/muduser/world && chown -R muduser:muduser /home/muduser
+
+and that's about it. connect with ssh as 'muduser' and awaaaay you go.
