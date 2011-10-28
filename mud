@@ -37,15 +37,17 @@ function prompt_alnum(){
     prompt_regex $1 "^[A-Za-z0-9]{1,}$" "A-z and 0-9 only!"
 }
 
+function getparam(){
+   echo `echo "$userfile" | grep ^$1 | cut -d'=' -f2`
+}
+
+function loaduserfile(){
+    export userfile=`cat $HOME/players/$1`
+}
+
 function login(){
     if [[ -f "$HOME/players/$1" ]];then
-        userfile=`cat $HOME/players/$1`
-        user_pass=`echo "$userfile" | grep ^password | cut -d'=' -f2`
-        user_fname=`echo "$userfile" | grep ^fname | cut -d'=' -f2`
-        user_lname=`echo "$userfile" | grep ^lname | cut -d'=' -f2`
-        user_x=`echo "$userfile" | grep ^pos_x | cut -d'=' -f2`
-        user_y=`echo "$userfile" | grep ^pos_y | cut -d'=' -f2`
-        user_lastlog=`echo "$userfile" | grep ^lastlog | cut -d'=' -f2`
+        loaduserfile $1
         checklogin $1
     else
         msg "\nWelcome to the MUD, $1! This looks like the first time I've seen you."
@@ -56,19 +58,18 @@ function login(){
 function checklogin(){
     msg "Password, please."
     prompt_secret pass
-    if [[ `echo $pass | sha1sum | cut -d' ' -f1` != $user_pass ]];then
+    if [[ `echo $pass | sha1sum | cut -d' ' -f1` != $(getparam password) ]];then
         msg "Sorry, that's not correct."
         exit
     else
-        msg "Welcome back, $1! I last saw you `date -d @$user_lastlog`."
-        sed -i "s/lastlog=$user_lastlog/lastlog=`date +%s | tr -d '\n'`/" "$HOME/players/$1"
+        msg "Welcome back, $1! I last saw you `date -d@$(getparam lastlog) +%m/%d/%Y\ %H\:%M`."
+        updateparam $1 "lastlog" "`date +%s | tr -d '\n'`"
     fi
 }
 
 function newuser(){
-    msg "I need to collect some info about you, for posterity.\nHow about a password?"
-    passfail=1
-    while [[ "$passfail" == "1" ]];do
+    msg "I need to collect some info about you, for posterity.\nHow about a password for this account?"
+    while [ 1==1 ];do
         prompt_secret pass1
         msg "And again?"
         prompt_secret pass2
@@ -92,9 +93,21 @@ fname=$fname
 lname=$lname
 loc_x=0
 loc_y=0
+registered=`date +%s`
 lastlog=`date +%s`
+gold=100
+char=0
+stam=0
+atk=0
+def=0
+dex=0
+magic=0
+level=1
+mana=200
+health=200
 " > "$HOME/players/$name"
-    msg "Okay, I have you down. be careful out there."
+    loaduserfile $name
+    msg "Okay, I have you down. Be careful out there."
 }
 
 function showhelp(){
@@ -123,6 +136,35 @@ exit    : exit the dungeon.
   esac;
 }
 
+function showplayerinfo(){
+    if [[ "$1" == "$name" ]];then
+        msg "\
+Player Info: $1
+-------------------------
+
+       Name: $(getparam fname) $(getparam lname)
+ Registered: `date -d @$(getparam registered) +%m/%d/%Y\ %H\:%M`
+   Location: ($(getparam loc_x),$(getparam loc_y))
+      Level: $(getparam level)
+       Gold: $(getparam gold)
+     Health: $(getparam health)
+       Mana: $(getparam mana)
+
+          Stats
+        ---------
+
+  Char: $(getparam char)  \t Atk: $(getparam atk)
+   Dex: $(getparam dex)  \t Def: $(getparam def)
+ Magic: $(getparam magic)  \tStam: $(getparam stam)
+"
+    fi
+}
+
+function updateparam(){
+    sed -i "s/$2=.*/$2=$3/" "$HOME/players/$1"
+    loaduserfile $1
+}
+
 msg "Welcome to slowbro's MUD thing"
 msg "What is your username?"
 prompt_alnum name
@@ -136,6 +178,9 @@ while [ 1=1 ];do
     action=`echo $in | cut -d' ' -f1`
     rest=`echo $in | sed -e "s/$action //"`
     case $action in
+        info)
+            showplayerinfo $name
+        ;;
         help)
             showhelp "$rest"
         ;;
